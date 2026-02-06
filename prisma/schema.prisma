@@ -1,0 +1,91 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+    EMPLOYER
+    TALENT
+}
+
+enum ApplicationSource {
+    MANUAL
+    INVITATION
+}
+
+enum InvitationStatus {
+    PENDING
+    ACCEPTED
+    DECLINED
+}
+
+model User {
+    id        String   @id @default(uuid())
+    name      String
+    email     String   @unique
+    role      UserRole
+    createdAt DateTime @default(now())
+
+    // Relations
+    employedJobs        Job[]         @relation("EmployerJobs")
+    applications        Application[] @relation("TalentApplications")
+    sentInvitations     Invitation[]  @relation("EmployerInvitations")
+    receivedInvitations Invitation[]  @relation("TalentInvitations")
+
+    @@map("users")
+}
+
+model Job {
+    id          String   @id @default(uuid())
+    title       String
+    companyName String
+    techStack   String[]
+    deadline    DateTime
+    description String
+    employerId  String
+    createdAt   DateTime @default(now())
+
+    // Relations
+    employer     User          @relation("EmployerJobs", fields: [employerId], references: [id])
+    applications Application[]
+    invitations  Invitation[]
+
+    @@map("jobs")
+}
+
+model Application {
+    id        String            @id @default(uuid())
+    jobId     String
+    talentId  String
+    source    ApplicationSource
+    createdAt DateTime          @default(now())
+
+    // Relations
+    job    Job  @relation(fields: [jobId], references: [id])
+    talent User @relation("TalentApplications", fields: [talentId], references: [id])
+
+    // Unique constraint
+    @@unique([jobId, talentId])
+    @@map("applications")
+}
+
+model Invitation {
+    id         String           @id @default(uuid())
+    jobId      String
+    talentId   String
+    employerId String
+    status     InvitationStatus @default(PENDING)
+    createdAt  DateTime         @default(now())
+
+    // Relations
+    job      Job  @relation(fields: [jobId], references: [id])
+    talent   User @relation("TalentInvitations", fields: [talentId], references: [id])
+    employer User @relation("EmployerInvitations", fields: [employerId], references: [id])
+
+    @@map("invitations")
+}
